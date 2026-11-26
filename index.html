@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>订单中心 - 海外会员管理</title>
+  <style>
+    :root {
+      --tcl-red:#e60012; --primary:#1677ff; --primary-hover:#4096ff;
+      --bg:#f4f5f7; --card:#fff; --border:#e5e6eb; --border-light:#f0f1f3;
+      --text:#1f2329; --text-secondary:#646a73; --text-muted:#8f959e;
+      --sidebar-w:180px; --header-h:52px; --radius:6px;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.04); --shadow-md:0 6px 20px rgba(0,0,0,.10);
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      min-height:100dvh;
+      font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+      color:var(--text); background:var(--bg); font-size:13px; -webkit-font-smoothing:antialiased;
+    }
+    button,input,select { font:inherit; }
+    button { cursor:pointer; }
+    a { color:var(--primary); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+
+    .topbar {
+      position:fixed; inset:0 0 auto 0; height:var(--header-h);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 24px; background:#fff; border-bottom:1px solid var(--border); z-index:300;
+    }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .brand-logo {
+      width:46px; height:22px; border-radius:2px; background:var(--tcl-red);
+      color:#fff; font-weight:800; font-size:13px; letter-spacing:.4px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .brand-name { font-size:15px; font-weight:600; letter-spacing:.2px; }
+    .topbar-right { display:flex; align-items:center; gap:18px; }
+    .icon-btn {
+      width:30px; height:30px; border:0; background:transparent; border-radius:50%;
+      display:inline-flex; align-items:center; justify-content:center; color:#4e5969;
+      transition:background .15s ease,color .15s ease;
+    }
+    .icon-btn:hover { background:#f2f3f5; color:var(--primary); }
+    .user { display:flex; align-items:center; gap:8px; }
+    .avatar {
+      width:26px; height:26px; border-radius:50%; background:#d9e8ff; color:var(--primary);
+      display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600;
+    }
+
+    .sidebar {
+      position:fixed; top:var(--header-h); bottom:0; left:0; width:var(--sidebar-w);
+      background:#fff; border-right:1px solid var(--border); padding:10px 0 20px;
+      overflow-y:auto; z-index:200;
+    }
+    .nav-item {
+      width:100%; border:0; background:transparent; display:flex; align-items:center; gap:10px;
+      height:38px; padding:0 18px; color:var(--text-secondary); font-size:13px; text-align:left;
+      transition:background .15s ease,color .15s ease;
+    }
+    .nav-item:hover { background:#f7f8fa; color:var(--text); }
+    .nav-item svg { flex:0 0 auto; color:#86909c; }
+    .nav-item .chev { margin-left:auto; transition:transform .2s ease; color:#a6abb3; }
+    .nav-item.expanded .chev { transform:rotate(90deg); }
+    .nav-item.parent-active { color:var(--primary); }
+    .nav-item.parent-active svg { color:var(--primary); }
+    .submenu { display:none; padding:2px 0 6px; }
+    .submenu.open { display:block; }
+    .sub-group {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 18px 6px 40px; color:var(--text-secondary); font-size:12px;
+    }
+    .sub-group .chev { transition:transform .2s ease; }
+    .sub-group.open .chev { transform:rotate(180deg); }
+    .sub-item {
+      display:block; width:100%; border:0; background:transparent; text-align:left;
+      padding:7px 18px 7px 54px; color:var(--text-secondary); font-size:12.5px;
+      transition:background .15s ease,color .15s ease;
+    }
+    .sub-item:hover { background:#f7f8fa; color:var(--primary); }
+    .sub-item.active { background:#eaf3ff; color:var(--primary); font-weight:500; position:relative; }
+    .sub-item.active::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--primary); }
+
+    .main { margin-left:var(--sidebar-w); padding-top:var(--header-h); min-height:100dvh; }
+    .content { padding:20px 24px 32px; max-width:1680px; }
+    .filter-card,.table-card {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:var(--shadow-sm);
+    }
+    .filter-card { padding:16px 20px; margin-bottom:16px; }
+    .filter-grid { display:grid; grid-template-columns:repeat(4,minmax(180px,1fr)); gap:14px 18px; }
+    .filter-grid.collapsed-payment { grid-template-columns:repeat(5,minmax(150px,1fr)); }
+    .filter-grid.collapsed-transaction { grid-template-columns:repeat(4,minmax(150px,1fr)); }
+    .field { display:flex; align-items:center; gap:8px; min-width:0; }
+    .field.date-wide { grid-column:span 2; }
+    .field.wide-label > label { width:118px; }
+    .field.spacer { min-height:32px; }
+    .field > label {
+      flex:0 0 auto; width:78px; color:var(--text-secondary); font-size:12.5px; white-space:nowrap;
+    }
+    .control { position:relative; flex:1; min-width:0; }
+    .input,.select {
+      width:100%; height:32px; border:1px solid #dcdee2; border-radius:4px; background:#fff;
+      color:var(--text); padding:0 10px; outline:none;
+      transition:border-color .15s ease,box-shadow .15s ease;
+    }
+    .input::placeholder { color:#b7bbc2; }
+    .input:focus,.select:focus { border-color:var(--primary); box-shadow:0 0 0 2px rgba(22,119,255,.10); }
+    .select {
+      appearance:none; padding-right:28px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868e9c' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 9px center;
+    }
+    .date-range { display:flex; align-items:center; gap:6px; }
+    .date-arrow { color:#a6abb3; flex:0 0 auto; }
+    .date-icon {
+      width:28px; height:28px; flex:0 0 auto; border:1px solid #dcdee2; border-radius:4px;
+      background:#fafafa; color:#8f959e; display:inline-flex; align-items:center; justify-content:center;
+    }
+    .filter-actions { display:flex; align-items:center; justify-content:center; gap:10px; }
+    .btn {
+      height:32px; padding:0 15px; border:1px solid #dcdee2; border-radius:4px; background:#fff;
+      color:var(--text); display:inline-flex; align-items:center; justify-content:center; gap:6px;
+      font-size:12.5px; transition:border-color .15s ease,color .15s ease,background .15s ease,transform .1s ease;
+    }
+    .btn:hover { border-color:var(--primary); color:var(--primary); }
+    .btn:active { transform:translateY(1px); }
+    .btn-primary { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .btn-primary:hover { background:var(--primary-hover); border-color:var(--primary-hover); color:#fff; }
+    .btn-text { border:0; background:transparent; color:var(--primary); padding:0 4px; display:inline-flex; align-items:center; gap:4px; }
+    .btn-text:hover { color:var(--primary-hover); }
+
+    .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .toolbar-left,.toolbar-right { display:flex; align-items:center; gap:10px; }
+    .tool-wrap { position:relative; }
+    .col-popover {
+      position:absolute; top:38px; right:0; width:168px; max-height:430px; background:#fff;
+      border:1px solid var(--border); border-radius:6px; box-shadow:var(--shadow-md);
+      z-index:250; display:none; overflow:hidden;
+    }
+    .col-popover.open { display:block; }
+    .col-head {
+      display:flex; align-items:center; justify-content:space-between; padding:8px 12px;
+      border-bottom:1px solid var(--border-light); font-size:12px; color:var(--text-secondary);
+    }
+    .col-head label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; }
+    .col-list { max-height:360px; overflow-y:auto; padding:6px 0; }
+    .col-list label {
+      display:flex; align-items:center; gap:8px; height:28px; padding:0 12px;
+      font-size:12.5px; color:var(--text); cursor:pointer;
+    }
+    .col-list label:hover { background:#f7f8fa; }
+    .col-list input[type=checkbox],.col-head input[type=checkbox] {
+      width:14px; height:14px; accent-color:var(--primary); cursor:pointer;
+    }
+    .col-new { margin-left:auto; color:var(--primary); font-size:10px; }
+
+    .table-card { overflow:hidden; }
+    .table-scroll { overflow-x:auto; overflow-y:hidden; }
+    table { width:100%; min-width:2520px; border-collapse:collapse; table-layout:fixed; font-size:12.5px; }
+    thead th {
+      height:42px; padding:0 12px; text-align:left; font-weight:600; color:var(--text-secondary);
+      background:#fafafa; border-bottom:1px solid var(--border); white-space:nowrap;
+      overflow:hidden; text-overflow:ellipsis;
+    }
+    thead th .th-label { display:inline-flex; align-items:center; gap:5px; }
+    .hint-icon { color:#b0b4bb; display:inline-flex; }
+    tbody td {
+      height:48px; padding:0 12px; border-bottom:1px solid var(--border-light); color:var(--text);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    tbody tr:last-child td { border-bottom:0; }
+    tbody tr:hover td { background:#f8fbff; }
+    .mono { font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace; font-size:12px; }
+    .money { font-variant-numeric:tabular-nums; font-weight:500; }
+    .channel-money { color:#1f2329; font-weight:600; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11.5px; line-height:18px; background:#f2f3f5; color:#4e5969; }
+    .tag-success { background:#e8ffea; color:#00a870; }
+    .tag-warning { background:#fff7e8; color:#d46b08; }
+    .empty-row td { text-align:center; color:var(--text-muted); height:140px; }
+    .pager {
+      display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+      border-top:1px solid var(--border); color:var(--text-secondary); font-size:12.5px;
+    }
+    .pager-controls { display:flex; gap:6px; }
+    .page-btn { min-width:28px; height:28px; border:1px solid #dcdee2; border-radius:4px; background:#fff; color:var(--text-secondary); }
+    .page-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
+    .page-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    .modal-mask {
+      position:fixed; inset:0; background:rgba(0,0,0,.38); z-index:400; display:none;
+      align-items:center; justify-content:center; padding:24px;
+    }
+    .modal-mask.open { display:flex; }
+    .modal { width:min(760px,100%); max-height:82dvh; background:#fff; border-radius:8px; box-shadow:0 20px 60px rgba(0,0,0,.18); display:flex; flex-direction:column; overflow:hidden; }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); font-weight:600; }
+    .modal-body { padding:20px; overflow-y:auto; }
+    .detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 24px; }
+    .detail-label { color:var(--text-secondary); font-size:12px; margin-bottom:5px; }
+    .detail-value { height:32px; display:flex; align-items:center; padding:0 10px; background:#f7f8fa; border-radius:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .modal-foot { display:flex; justify-content:flex-end; padding:12px 20px; border-top:1px solid var(--border); }
+    .toast {
+      position:fixed; left:50%; top:74px; transform:translate(-50%,-12px); background:#1f2329;
+      color:#fff; padding:8px 16px; border-radius:4px; font-size:12.5px; opacity:0;
+      pointer-events:none; transition:opacity .2s ease,transform .2s ease; z-index:500;
+    }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    :focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+
+    @media (max-width:1180px) {
+      .filter-grid,.filter-grid.collapsed-payment,.filter-grid.collapsed-transaction { grid-template-columns:repeat(2,minmax(220px,1fr)); }
+      .field.date-wide { grid-column:span 2; }
+    }
+    @media (max-width:860px) {
+      .sidebar { transform:translateX(-100%); transition:transform .2s ease; }
+      .sidebar.open { transform:translateX(0); }
+      .main { margin-left:0; }
+      .content { padding:16px; }
+      .filter-grid,.filter-grid.collapsed-payment,.filter-grid.collapsed-transaction { grid-template-columns:1fr; }
+      .field.date-wide { grid-column:span 1; }
+      .topbar { padding:0 16px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { transition-duration:.01ms !important; animation-duration:.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <button class="icon-btn" id="menuBtn" aria-label="展开菜单" title="展开菜单">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <span class="brand-logo">TCL</span>
+      <span class="brand-name">海外会员管理</span>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" aria-label="首页" title="首页"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></button>
+      <button class="icon-btn" aria-label="语言" title="语言"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.4 2.5 3.6 5.5 3.6 9S14.4 18.5 12 21c-2.4-2.5-3.6-5.5-3.6-9S9.6 5.5 12 3z"/></svg></button>
+      <div class="user"><span class="avatar">郭</span><span>郭孝利</span></div>
+    </div>
+  </header>
+
+  <aside class="sidebar" id="sidebar" aria-label="主导航">
+    <button class="nav-item" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5"/></svg><span>会员管理</span></button>
+    <button class="nav-item" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16v13H4z"/><path d="M4 7l2-4h12l2 4"/><path d="M9 11h6"/></svg><span>商品管理</span></button>
+    <button class="nav-item" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 15h4"/></svg><span>收银台投放管理</span></button>
+    <button class="nav-item parent-active expanded" id="renewParent" type="button" aria-expanded="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/></svg><span>自动续费管理</span><span class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span></button>
+    <div class="submenu open" id="renewSubmenu">
+      <div class="sub-group open" id="orderGroup"><span>订单中心</span><span class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></span></div>
+      <div id="orderSubmenu">
+        <button class="sub-item active" type="button" data-page="payment" aria-current="page">支付订单</button>
+        <button class="sub-item" type="button" data-page="transaction">交易订单</button>
+        <button class="sub-item" type="button">付费会员</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main"><div class="content" id="app"></div></main>
+
+  <div class="modal-mask" id="detailModal" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="modal">
+      <div class="modal-head"><span id="detailTitle">订单详情</span><button class="icon-btn" type="button" id="closeDetail" aria-label="关闭"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-foot"><button class="btn" type="button" id="closeDetailFoot">关闭</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const CHANNEL_HINT = "对应渠道实际配置的商品价格，按当地货币展示";
+
+    const paymentRows = [
+      { seq:1, tclOrder:"FFPAY2026112703347C4F2", merchantOrder:"2026112703347EAE", channelOrder:"GPA.3358-4980-3039-44494", userId:"874683240448069", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"美国", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.17 USD", channelAmount:"1.20USD", createTime:"2026-11-27 03:34:47", payTime:"2026-11-27 03:34:55" },
+      { seq:2, tclOrder:"FFPAY202611270141CDCA", merchantOrder:"202611270141B915", channelOrder:"GPA.3358-4980-3039-44502", userId:"874683240448069", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"印尼", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-再次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"2200IDR", createTime:"2026-11-27 01:41:14", payTime:"2026-11-27 01:41:22" },
+      { seq:3, tclOrder:"FFPAY20261126163817B0F5", merchantOrder:"20261126163817ECC5", channelOrder:"GPA.3358-4980-3039-44511", userId:"857339807592581", merchantName:"优酷SDK", bizType:"普通购买", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"美国", payStatus:"已支付", payChannel:"GPB", orderType:"普通支付", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"1.20USD", createTime:"2026-11-26 16:38:17", payTime:"2026-11-26 16:38:25" },
+      { seq:4, tclOrder:"FFPAY2026112616383209DA", merchantOrder:"2026112616381F589", channelOrder:"GPA.3358-4980-3039-44523", userId:"874683240448069", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-Q", goodsName:"VIP 季卡", country:"泰国", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.44 USD", channelAmount:"39.00THB", createTime:"2026-11-26 16:38:32", payTime:"2026-11-26 16:38:40" },
+      { seq:5, tclOrder:"FFPAY20261126163724A2982", merchantOrder:"20261126163724A1531", channelOrder:"GPA.3358-4980-3039-44537", userId:"874683240448069", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"越南", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-再次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"29000VND", createTime:"2026-11-26 16:37:24", payTime:"2026-11-26 16:37:31" },
+      { seq:6, tclOrder:"FFPAY202611261635194A2CE", merchantOrder:"202611261635194D52", channelOrder:"GPA.3358-4980-3039-44548", userId:"947164658", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"美国", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.23 USD", channelAmount:"1.30USD", createTime:"2026-11-26 16:35:19", payTime:"2026-11-26 16:35:27" },
+      { seq:7, tclOrder:"FFPAY2026112616351444EBE", merchantOrder:"2026112616351443A96", channelOrder:"GPA.3358-4980-3039-44559", userId:"874683240448069", merchantName:"优酷SDK", bizType:"自动续费", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"印尼", payStatus:"已支付", payChannel:"GPB", orderType:"自动续费-再次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"0.98 USD", channelAmount:"2200IDR", createTime:"2026-11-26 16:35:14", payTime:"2026-11-26 16:35:21" },
+      { seq:8, tclOrder:"FFPAY20261126163437FAC9", merchantOrder:"20261126163437F9472", channelOrder:"GPA.3358-4980-3039-44561", userId:"622312530", merchantName:"优酷SDK", bizType:"普通购买", goodsCode:"VIP-M", goodsName:"VIP 月卡", country:"美国", payStatus:"已支付", payChannel:"GPB", orderType:"普通支付", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"0.98 USD", channelAmount:"1.00USD", createTime:"2026-11-26 16:34:37", payTime:"2026-11-26 16:34:44" }
+    ];
+
+    const transactionRows = [
+      { seq:1, orderNo:"FFPAY20261126163824A1B2", channelOrder:"4500000378202611269130337152", userId:"U100238", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"美国", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.17 USD", channelAmount:"1.20USD", createTime:"2026-11-26 16:38:24", payTime:"2026-11-26 16:38:30" },
+      { seq:2, orderNo:"FFPAY20261126163803C7D9", channelOrder:"4500000360202611269055309545", userId:"U100239", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"印尼", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"2200IDR", createTime:"2026-11-26 16:38:03", payTime:"2026-11-26 16:38:10" },
+      { seq:3, orderNo:"FFPAY20261126163738E4F1", channelOrder:"4500000346202611264060554417", userId:"U100240", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"美国", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"1.20USD", createTime:"2026-11-26 16:37:38", payTime:"2026-11-26 16:37:45" },
+      { seq:4, orderNo:"FFPAY20261126163526B8A3", channelOrder:"4500000350202611268023506052", userId:"U100241", goodsName:"VIP 季卡", bizType:"自动续费", goodsCode:"GPB-VIP-Q", country:"泰国", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.44 USD", channelAmount:"39.00THB", createTime:"2026-11-26 16:35:26", payTime:"2026-11-26 16:35:33" },
+      { seq:5, orderNo:"FFPAY20261126163521D2C6", channelOrder:"4500000360202611263510339808", userId:"U100242", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"越南", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.13 USD", channelAmount:"29000VND", createTime:"2026-11-26 16:35:21", payTime:"2026-11-26 16:35:28" },
+      { seq:6, orderNo:"FFPAY20261126163458F9E2", channelOrder:"4500000378202611267310456128", userId:"U100243", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"美国", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"1.23 USD", channelAmount:"1.30USD", createTime:"2026-11-26 16:34:58", payTime:"2026-11-26 16:35:04" },
+      { seq:7, orderNo:"FFPAY20261126163455A7B4", channelOrder:"4500000346202611266209881734", userId:"U100244", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"印尼", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"0.98 USD", channelAmount:"2200IDR", createTime:"2026-11-26 16:34:55", payTime:"2026-11-26 16:35:02" },
+      { seq:8, orderNo:"FFPAY20261126163358C1D5", channelOrder:"4500000350202611265118372906", userId:"U100245", goodsName:"VIP 月卡", bizType:"自动续费", goodsCode:"GPB-VIP-M", country:"美国", payStatus:"已支付", deliveryStatus:"已发货", payChannel:"GPB", orderType:"自动续费-首次扣费", collector:"深圳市雷鸟网络传媒有限公司", payAmount:"0.98 USD", channelAmount:"1.00USD", createTime:"2026-11-26 16:33:58", payTime:"2026-11-26 16:34:05" }
+    ];
+
+    const paymentColumns = [
+      { key:"seq",label:"序号",width:56 },{ key:"tclOrder",label:"TCL订单号",width:200 },
+      { key:"merchantOrder",label:"商户订单号",width:180 },{ key:"channelOrder",label:"渠道订单号",width:190 },
+      { key:"userId",label:"用户ID",width:140 },{ key:"merchantName",label:"商户名称",width:110 },
+      { key:"bizType",label:"业务类型",width:100 },{ key:"goodsCode",label:"商品编码",width:140 },
+      { key:"goodsName",label:"商品名称",width:140 },{ key:"country",label:"国家/地区",width:96 },
+      { key:"payStatus",label:"支付状态",width:90 },{ key:"payChannel",label:"支付渠道",width:90 },
+      { key:"orderType",label:"订单类型",width:150 },{ key:"collector",label:"收款主体",width:210 },
+      { key:"payAmount",label:"支付金额",width:100 },
+      { key:"channelAmount",label:"渠道金额",width:106,isNew:true,hint:CHANNEL_HINT },
+      { key:"createTime",label:"支付订单创建时间",width:180 },{ key:"payTime",label:"支付时间",width:165 },
+      { key:"action",label:"操作",width:64 }
+    ];
+
+    const transactionColumns = [
+      { key:"seq",label:"序号",width:56 },{ key:"orderNo",label:"订单号",width:200 },
+      { key:"channelOrder",label:"渠道订单号",width:190 },{ key:"userId",label:"用户ID",width:130 },
+      { key:"goodsName",label:"商品名称",width:150 },{ key:"bizType",label:"业务类型",width:100 },
+      { key:"goodsCode",label:"商品编码",width:140 },{ key:"country",label:"国家/地区",width:96 },
+      { key:"payStatus",label:"支付状态",width:90 },{ key:"deliveryStatus",label:"发货状态",width:90 },
+      { key:"payChannel",label:"支付渠道",width:90 },{ key:"orderType",label:"订单类型",width:150 },
+      { key:"collector",label:"收款主体",width:210 },{ key:"payAmount",label:"支付金额",width:100 },
+      { key:"channelAmount",label:"渠道金额",width:106,isNew:true,hint:CHANNEL_HINT },
+      { key:"createTime",label:"交易订单创建时间",width:180 },{ key:"payTime",label:"支付时间",width:165 },
+      { key:"action",label:"操作",width:64 }
+    ];
+
+    const countryOptions = ["全部","美国","印尼","泰国","越南"];
+    const merchantOptions = ["全部","优酷SDK","TCL Digital"];
+    const bizOptions = ["全部","自动续费","普通购买"];
+    const statusOptions = ["全部","已支付","未支付","已退款"];
+    const deliveryOptions = ["全部","已发货","待发货"];
+    const channelOptions = ["全部","GPB","Stripe"];
+    const orderTypeOptions = ["全部","自动续费-首次扣费","自动续费-再次扣费","普通支付"];
+    const collectorOptions = ["全部","深圳市雷鸟网络传媒有限公司","深圳TCL数字技术有限公司"];
+
+    const pages = {
+      payment: {
+        title:"支付订单",
+        aria:"支付订单列表",
+        collapsedCount:5,
+        filters:[
+          { id:"fTclOrder",label:"TCL订单号",type:"input",placeholder:"请输入TCL订单号",collapsed:true },
+          { id:"fMerchantOrder",label:"商户订单号",type:"input",placeholder:"请输入商户订单号",collapsed:true },
+          { id:"fChannelOrder",label:"渠道订单号",type:"input",placeholder:"请输入渠道订单号",collapsed:true },
+          { id:"fUserId",label:"用户ID",type:"input",placeholder:"请输入用户ID",collapsed:true },
+          { spacer:true },
+          { id:"fPayTime",label:"支付时间",type:"date",span:2 },
+          { id:"fCreateTime",label:"支付订单创建时间",type:"date",span:2,wide:true },
+          { id:"fGoodsCode",label:"商品编码",type:"input",placeholder:"请输入商品编码" },
+          { id:"fGoodsName",label:"商品名称",type:"input",placeholder:"请输入商品名称" },
+          { id:"fCountry",label:"国家/地区",type:"select",options:countryOptions },
+          { id:"fMerchant",label:"商户名称",type:"select",options:merchantOptions },
+          { id:"fBizType",label:"业务类型",type:"select",options:bizOptions },
+          { id:"fPayStatus",label:"支付状态",type:"select",options:statusOptions },
+          { id:"fPayChannel",label:"支付渠道",type:"select",options:channelOptions },
+          { id:"fOrderType",label:"订单类型",type:"select",options:orderTypeOptions },
+          { id:"fCollector",label:"收款主体",type:"select",options:collectorOptions }
+        ],
+        fields:["tclOrder","merchantOrder","channelOrder","userId","goodsCode","goodsName","country","merchantName","bizType","payStatus","payChannel","orderType","collector"],
+        columns:paymentColumns,
+        detail:[["TCL订单号","tclOrder"],["商户订单号","merchantOrder"],["渠道订单号","channelOrder"],["用户ID","userId"],["商户名称","merchantName"],["商品名称","goodsName"],["商品编码","goodsCode"],["国家/地区","country"],["支付渠道","payChannel"],["订单类型","orderType"],["收款主体","collector"],["支付金额","payAmount"],["渠道金额（当地币种）","channelAmount"],["支付订单创建时间","createTime"],["支付时间","payTime"],["支付状态","payStatus"]]
+      },
+      transaction: {
+        title:"交易订单",
+        aria:"交易订单列表",
+        collapsedCount:4,
+        filters:[
+          { id:"fOrderNo",label:"订单号",type:"input",placeholder:"请输入订单号",collapsed:true },
+          { id:"fChannelOrder",label:"渠道订单号",type:"input",placeholder:"请输入渠道订单号",collapsed:true },
+          { id:"fUserId",label:"用户ID",type:"input",placeholder:"请输入用户ID",collapsed:true },
+          { spacer:true },
+          { id:"fPayTime",label:"支付时间",type:"date",span:2 },
+          { id:"fCreateTime",label:"交易订单创建时间",type:"date",span:2,wide:true },
+          { id:"fGoodsCode",label:"商品编码",type:"input",placeholder:"请输入商品编码" },
+          { id:"fGoodsName",label:"商品名称",type:"input",placeholder:"请输入商品名称" },
+          { id:"fCountry",label:"国家/地区",type:"select",options:countryOptions },
+          { id:"fMerchant",label:"商户名称",type:"select",options:merchantOptions },
+          { id:"fBizType",label:"业务类型",type:"select",options:bizOptions },
+          { id:"fPayStatus",label:"支付状态",type:"select",options:statusOptions },
+          { id:"fDelivery",label:"发货状态",type:"select",options:deliveryOptions },
+          { id:"fPayChannel",label:"支付渠道",type:"select",options:channelOptions },
+          { id:"fOrderType",label:"订单类型",type:"select",options:orderTypeOptions },
+          { id:"fCollector",label:"收款主体",type:"select",options:collectorOptions }
+        ],
+        fields:["orderNo","channelOrder","userId","goodsCode","goodsName","country","merchantName","bizType","payStatus","deliveryStatus","payChannel","orderType","collector"],
+        columns:transactionColumns,
+        detail:[["订单号","orderNo"],["渠道订单号","channelOrder"],["用户ID","userId"],["商品名称","goodsName"],["商品编码","goodsCode"],["国家/地区","country"],["支付渠道","payChannel"],["订单类型","orderType"],["收款主体","collector"],["支付金额","payAmount"],["渠道金额（当地币种）","channelAmount"],["交易订单创建时间","createTime"],["支付时间","payTime"],["支付状态","payStatus"],["发货状态","deliveryStatus"]]
+      }
+    };
+
+    const state = {};
+    Object.keys(pages).forEach(function (key) {
+      const cfg = pages[key];
+      state[key] = {
+        rows: (key === "payment" ? paymentRows : transactionRows).slice(),
+        allRows: (key === "payment" ? paymentRows : transactionRows).slice(),
+        visible: new Set(cfg.columns.map(function (c) { return c.key; })),
+        expanded: true,
+        colOpen: true,
+        scrolled: false,
+        scrollLeft: 0
+      };
+    });
+
+    let activePage = "payment";
+    const $ = function (id) { return document.getElementById(id); };
+    const cfg = function () { return pages[activePage]; };
+    const st = function () { return state[activePage]; };
+
+    function showToast(msg) {
+      const el = $("toast");
+      el.textContent = msg;
+      el.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(function () { el.classList.remove("show"); }, 1600);
+    }
+
+    function renderFilterField(f) {
+      if (f.spacer) return '<div class="field spacer extra-filter" aria-hidden="true"></div>';
+      const cls = ["field", f.span === 2 ? "date-wide" : "", f.wide ? "wide-label" : "", f.collapsed ? "" : "extra-filter"].filter(Boolean).join(" ");
+      let control = "";
+      if (f.type === "input") {
+        control = '<input class="input" id="' + f.id + '" placeholder="' + f.placeholder + '" />';
+      } else if (f.type === "date") {
+        control = '<div class="date-range"><input class="input" placeholder="开始日期" aria-label="' + f.label + '开始日期" /><span class="date-arrow">→</span><input class="input" placeholder="结束日期" aria-label="' + f.label + '结束日期" /><button class="date-icon" type="button" aria-label="选择' + f.label + '"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button></div>';
+      } else {
+        control = '<select class="select" id="' + f.id + '">' + f.options.map(function (o) { return '<option>' + o + "</option>"; }).join("") + "</select>";
+      }
+      return '<div class="' + cls + '"><label for="' + (f.id || "") + '">' + f.label + '：</label><div class="control">' + control + "</div></div>";
+    }
+
+    function renderApp() {
+      const c = cfg();
+      const s = st();
+      $("app").innerHTML =
+        '<section class="filter-card" aria-label="筛选条件"><div class="filter-grid" id="filterGrid">' +
+          c.filters.map(renderFilterField).join("") +
+          '<div class="filter-actions" id="filterActions"><button class="btn btn-primary" type="button" data-action="query">查询</button><button class="btn" type="button" data-action="reset">重置</button><button class="btn-text" type="button" data-action="toggle">' + (s.expanded ? "收起" : "展开") + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="' + (s.expanded ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6") + '"/></svg></button></div>' +
+        "</div></section>" +
+        '<div class="toolbar"><div class="toolbar-left"><button class="btn" type="button" data-action="export"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>导出</button><button class="btn" type="button" data-action="queue">下载队列</button></div>' +
+        '<div class="toolbar-right"><div class="tool-wrap"><button class="btn" type="button" id="colBtn" aria-haspopup="true" aria-expanded="' + (s.colOpen ? "true" : "false") + '"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1-2.8 2.8-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21h-4v-.2a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1L4.2 17l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3v-4h.2a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8L4.2 7 7 4.2l.1.1a1.6 1.6 0 001.8.3 1.6 1.6 0 001-1.5V3h4v.2a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1L19.8 7l-.1.1a1.6 1.6 0 00-.3 1.8 1.6 1.6 0 001.5 1H21v4h-.2a1.6 1.6 0 00-1.4 1z"/></svg>列设置</button>' +
+        '<div class="col-popover' + (s.colOpen ? " open" : "") + '" id="colPopover" role="group" aria-label="列设置"><div class="col-head"><label><input type="checkbox" id="allCols"' + (s.visible.size === c.columns.length ? " checked" : "") + " /> 全选</label><button class=\"btn-text\" type=\"button\" data-action=\"resetCols\">重置</button></div><div class=\"col-list\" id=\"colList\">" + renderColumnList() + "</div></div></div></div></div>" +
+        '<section class="table-card" aria-label="' + c.aria + '"><div class="table-scroll" id="tableScroll"><table><thead><tr id="headRow"></tr></thead><tbody id="bodyRows"></tbody></table></div><div class="pager"><span id="pagerInfo"></span><div class="pager-controls"><button class="page-btn" type="button" disabled>‹</button><button class="page-btn active" type="button">1</button><button class="page-btn" type="button" disabled>›</button></div></div></section>';
+
+      applyFilterMode();
+      renderTable();
+      bindAppEvents();
+      document.title = c.title + " - 海外会员管理";
+      document.querySelectorAll(".sub-item[data-page]").forEach(function (b) {
+        const on = b.dataset.page === activePage;
+        b.classList.toggle("active", on);
+        if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+      });
+    }
+
+    function renderColumnList() {
+      const c = cfg(), s = st();
+      return c.columns.map(function (col) {
+        const badge = col.isNew ? '<span class="col-new">新增</span>' : "";
+        return '<label><input type="checkbox" data-col="' + col.key + '"' + (s.visible.has(col.key) ? " checked" : "") + ' /> <span>' + col.label + "</span>" + badge + "</label>";
+      }).join("");
+    }
+
+    function applyFilterMode() {
+      const c = cfg(), s = st();
+      const grid = $("filterGrid");
+      grid.querySelectorAll(".extra-filter").forEach(function (el) { el.style.display = s.expanded ? "" : "none"; });
+      grid.classList.remove("collapsed-payment","collapsed-transaction");
+      if (!s.expanded) grid.classList.add(activePage === "payment" ? "collapsed-payment" : "collapsed-transaction");
+      const btn = grid.querySelector('[data-action="toggle"]');
+      if (btn) btn.innerHTML = (s.expanded ? "收起" : "展开") + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="' + (s.expanded ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6") + '"/></svg>';
+    }
+
+    function cellContent(col, row) {
+      if (col.key === "action") return '<a href="javascript:void(0)" onclick="window.__openOrderDetail(' + row.seq + ')">详情</a>';
+      if (col.key === "payStatus") {
+        const cls = row.payStatus === "已支付" ? "tag-success" : (row.payStatus === "已退款" ? "tag-warning" : "");
+        return '<span class="tag ' + cls + '">' + row.payStatus + "</span>";
+      }
+      if (col.key === "deliveryStatus") return '<span class="tag">' + row.deliveryStatus + "</span>";
+      if (col.key === "payAmount") return '<span class="money">' + row.payAmount + "</span>";
+      if (col.key === "channelAmount") return '<span class="money channel-money" title="' + col.hint + '">' + row.channelAmount + "</span>";
+      if (["tclOrder","merchantOrder","orderNo","channelOrder","goodsCode","userId"].indexOf(col.key) !== -1) return '<span class="mono">' + row[col.key] + "</span>";
+      return row[col.key];
+    }
+
+    function renderTable() {
+      const c = cfg(), s = st();
+      const active = c.columns.filter(function (col) { return s.visible.has(col.key); });
+      $("headRow").innerHTML = active.map(function (col) {
+        const hint = col.hint ? '<span class="hint-icon" title="' + col.hint + '"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span>' : "";
+        return '<th style="width:' + col.width + 'px"><span class="th-label">' + col.label + hint + "</span></th>";
+      }).join("");
+      if (!s.rows.length) {
+        $("bodyRows").innerHTML = '<tr class="empty-row"><td colspan="' + active.length + '">暂无数据</td></tr>';
+      } else {
+        $("bodyRows").innerHTML = s.rows.map(function (row) {
+          return "<tr>" + active.map(function (col) { return '<td style="width:' + col.width + 'px">' + cellContent(col,row) + "</td>"; }).join("") + "</tr>";
+        }).join("");
+      }
+      $("pagerInfo").textContent = "共 " + s.rows.length + " 条记录，当前第 1 / 1 页";
+      if (!s.scrolled) {
+        const payIdx = c.columns.findIndex(function (x) { return x.key === "payChannel"; });
+        const offset = c.columns.filter(function (x,i) { return i < payIdx && s.visible.has(x.key); }).reduce(function (sum,x) { return sum + x.width; }, 0);
+        $("tableScroll").scrollLeft = Math.max(0, offset - 12);
+        s.scrolled = true;
+        s.scrollLeft = $("tableScroll").scrollLeft;
+      } else {
+        $("tableScroll").scrollLeft = s.scrollLeft;
+      }
+    }
+
+    function bindAppEvents() {
+      $("app").onclick = function (e) {
+        const actionEl = e.target.closest("[data-action]");
+        if (actionEl) {
+          const a = actionEl.dataset.action;
+          if (a === "query") runQuery();
+          if (a === "reset") resetFilters();
+          if (a === "toggle") { st().expanded = !st().expanded; applyFilterMode(); }
+          if (a === "export") showToast("已创建导出任务");
+          if (a === "queue") showToast("暂无下载任务");
+          if (a === "resetCols") {
+            st().visible = new Set(cfg().columns.map(function (c) { return c.key; }));
+            $("colList").innerHTML = renderColumnList();
+            $("allCols").checked = true;
+            $("allCols").indeterminate = false;
+            renderTable();
+            showToast("列设置已恢复默认");
+          }
+          return;
+        }
+        const box = e.target.closest("input[data-col]");
+        if (box) {
+          if (box.checked) st().visible.add(box.dataset.col); else st().visible.delete(box.dataset.col);
+          const all = $("allCols");
+          all.checked = st().visible.size === cfg().columns.length;
+          all.indeterminate = st().visible.size > 0 && st().visible.size < cfg().columns.length;
+          renderTable();
+        }
+      };
+      $("colBtn").addEventListener("click", function (e) {
+        e.stopPropagation();
+        st().colOpen = !st().colOpen;
+        $("colPopover").classList.toggle("open", st().colOpen);
+        $("colBtn").setAttribute("aria-expanded", st().colOpen ? "true" : "false");
+      });
+      $("colPopover").addEventListener("click", function (e) { e.stopPropagation(); });
+      $("allCols").addEventListener("change", function (e) {
+        st().visible = e.target.checked ? new Set(cfg().columns.map(function (c) { return c.key; })) : new Set();
+        $("colList").innerHTML = renderColumnList();
+        renderTable();
+      });
+      $("tableScroll").addEventListener("scroll", function () { st().scrollLeft = $("tableScroll").scrollLeft; });
+    }
+
+    function runQuery() {
+      const c = cfg(), s = st();
+      const val = function (id) { const el = $(id); return el ? el.value.trim() : ""; };
+      const contains = function (src, target) { return !target || String(src).toLowerCase().indexOf(target.toLowerCase()) !== -1; };
+      const map = {};
+      c.filters.forEach(function (f) { if (f.id && f.type === "select") map[f.id] = f.id; });
+      s.rows = s.allRows.filter(function (r) {
+        return c.fields.every(function (field) {
+          const idMap = { tclOrder:"fTclOrder", merchantOrder:"fMerchantOrder", userId:"fUserId", goodsCode:"fGoodsCode", goodsName:"fGoodsName", orderNo:"fOrderNo", merchantName:"fMerchant", deliveryStatus:"fDelivery" };
+          const id = idMap[field] || "f" + field.charAt(0).toUpperCase() + field.slice(1);
+          const v = val(id);
+          if (!v || v === "全部") return true;
+          return contains(r[field], v);
+        });
+      });
+      s.scrolled = false;
+      renderTable();
+      showToast("查询完成，共 " + s.rows.length + " 条结果");
+    }
+
+    function resetFilters() {
+      $("filterGrid").querySelectorAll("input,select").forEach(function (el) { if (el.type === "checkbox") return; el.value = ""; if (el.tagName === "SELECT") el.selectedIndex = 0; });
+      st().rows = st().allRows.slice();
+      st().scrolled = false;
+      renderTable();
+      showToast("筛选条件已重置");
+    }
+
+    function openOrderDetail(seq) {
+      const row = st().allRows.find(function (r) { return r.seq === seq; });
+      if (!row) return;
+      $("detailBody").innerHTML = '<div class="detail-grid">' + cfg().detail.map(function (f) {
+        return '<div class="detail-item"><div class="detail-label">' + f[0] + '</div><div class="detail-value">' + row[f[1]] + "</div></div>";
+      }).join("") + "</div>";
+      $("detailModal").classList.add("open");
+    }
+    function closeOrderDetail() { $("detailModal").classList.remove("open"); }
+
+    function setPage(key) {
+      if (!pages[key] || key === activePage) return;
+      const s = st();
+      s.scrollLeft = $("tableScroll") ? $("tableScroll").scrollLeft : s.scrollLeft;
+      activePage = key;
+      renderApp();
+      $("sidebar").classList.remove("open");
+      showToast("已切换到" + cfg().title);
+    }
+
+    document.addEventListener("click", function () {
+      const s = st();
+      if (s.colOpen && $("colPopover")) { s.colOpen = false; $("colPopover").classList.remove("open"); $("colBtn").setAttribute("aria-expanded","false"); }
+    });
+    document.querySelectorAll(".sub-item[data-page]").forEach(function (b) { b.addEventListener("click", function () { setPage(b.dataset.page); }); });
+    $("closeDetail").addEventListener("click", closeOrderDetail);
+    $("closeDetailFoot").addEventListener("click", closeOrderDetail);
+    $("detailModal").addEventListener("click", function (e) { if (e.target === this) closeOrderDetail(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeOrderDetail(); });
+    $("menuBtn").addEventListener("click", function () { $("sidebar").classList.toggle("open"); });
+    $("renewParent").addEventListener("click", function () { this.classList.toggle("expanded"); $("renewSubmenu").classList.toggle("open"); });
+    $("orderGroup").addEventListener("click", function () { this.classList.toggle("open"); $("orderSubmenu").style.display = this.classList.contains("open") ? "" : "none"; });
+    window.__openOrderDetail = openOrderDetail;
+
+    renderApp();
+  })();
+  </script>
+</body>
+</html>
